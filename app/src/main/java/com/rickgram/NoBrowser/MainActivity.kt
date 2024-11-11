@@ -116,6 +116,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onBackPressed() {
+        if (myWebView.canGoBack()) {
+            myWebView.goBack() // Go to the previous page in WebView history
+        } else {
+            super.onBackPressed() // Exit the app
+        }
+    }
+
+
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
         return true
