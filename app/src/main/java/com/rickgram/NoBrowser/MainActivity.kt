@@ -19,18 +19,20 @@ import android.os.Environment
 import android.net.Uri
 import android.widget.Toast
 import android.content.Context
-
+import android.os.Handler
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import android.webkit.CookieManager
 
 class MainActivity : AppCompatActivity() {
     private lateinit var myWebView: WebView
-    private lateinit var urlTextView: TextView
-    private lateinit var toolbarTitle: TextView
+    private lateinit var swipeRefreshLayout: SwipeRefreshLayout
 
     private val REQUEST_CODE = 1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
 
         // Check for permissions
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -51,28 +53,44 @@ class MainActivity : AppCompatActivity() {
         val toolbar: Toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
 
-        //Initialize WebView
+        // Initialize WebView and SwipeRefreshLayout
         myWebView = findViewById(R.id.webview)
+        swipeRefreshLayout = findViewById(R.id.swipeContainer)
+
+        // Set up the SwipeRefreshLayout to refresh only when at the top
+        swipeRefreshLayout.setOnRefreshListener {
+            refreshPage()
+            Handler().postDelayed({
+                swipeRefreshLayout.isRefreshing = false
+            }, 1000)
+        }
+
+        // Set up the scroll listener for WebView
+        myWebView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+            // Enable SwipeRefreshLayout only if WebView is scrolled to the top
+            swipeRefreshLayout.isEnabled = (scrollY == 0)
+        }
 
         // Enable JavaScript if needed
-        myWebView.settings.javaScriptEnabled = true
+        myWebView.getSettings().setJavaScriptEnabled(true);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(myWebView, false);
+        myWebView.getSettings().setMediaPlaybackRequiresUserGesture(false);
 
         // Set up the WebViewClient to update the URL in the Toolbar
         myWebView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
-                // Update Toolbar title with the current URL
                 supportActionBar?.title = url
             }
         }
 
+
         // Set up the DownloadListener
-        myWebView.setDownloadListener { url, userAgent, contentDisposition, mimeType, contentLength ->
+        myWebView.setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
             val request = DownloadManager.Request(Uri.parse(url))
 
             // Setting the download file type
             request.setMimeType(mimeType)
-            // Tells the system to scan the downloaded file when completed
             request.allowScanningByMediaScanner()
             request.addRequestHeader("User-Agent", userAgent)
             request.setDescription("Downloading file...")
@@ -89,18 +107,13 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(applicationContext, "Downloading File...", Toast.LENGTH_LONG).show()
         }
 
-
         // Intent handling for receiving URLs from other apps
         val intent = intent
         val action = intent.action
         val data = intent.data
         if (action == Intent.ACTION_VIEW && data != null) {
             myWebView.loadUrl(data.toString())
-        } else {
-            // Load a default URL if no intent data is received
-            myWebView.loadUrl("https://altl.io/")
         }
-
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -137,6 +150,4 @@ class MainActivity : AppCompatActivity() {
     private fun refreshPage() {
         myWebView.reload() // Reloads the current page in the WebView
     }
-
-
 }
